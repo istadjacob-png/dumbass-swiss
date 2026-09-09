@@ -1441,7 +1441,7 @@ html,body{background:#FFFFFF;font-family:'Inter',sans-serif;font-weight:400;-web
     <div id="login-error" class="login-err"></div>
     <button class="login-cta" id="login-submit" onclick="submitLogin()">LOG IN</button>
     <button class="login-toggle" id="login-toggle" onclick="toggleLoginMode()">New here? <b>Create an account</b></button>
-    <div class="login-foot">One account · syncs LIFT, STRETCH &amp; FUEL</div>
+    <div class="login-foot">Syncs your lifts across phone, web &amp; tablet</div>
   </div>
 </div>
 
@@ -1533,7 +1533,7 @@ html,body{background:#FFFFFF;font-family:'Inter',sans-serif;font-weight:400;-web
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_BUILD='2026-08-30.3';  // bump on every deploy — drives auto-update
+const APP_BUILD='2026-09-09.1';  // bump on every deploy — drives auto-update
 const LIBRARY=[
   {id:'flat-bench',name:'Flat Bench Press',muscle:'chest',secondary:['triceps','front-delts'],region:'middle',type:'COMPOUND',equipment:'BARBELL',form:{primary:'Bench angle flat, feet planted, shoulder blades tucked and down.',cues:['Bar touches mid-chest at nipple line','Drive feet through floor for leg drive','Elbows at ~45° to torso','2 seconds down · pause · explode up']}},
   {id:'inc-bench',name:'Incline Bench Press',muscle:'chest',secondary:['triceps','front-delts'],region:'upper',type:'COMPOUND',equipment:'BARBELL',form:{primary:'Bench angle 30–45° (not higher — shifts to front delts).',cues:['Feet planted, shoulder blades tucked','Bar touches upper chest (below collarbone)','Drive bar in slight arc back over shoulders','Focus contraction on upper chest']}},
@@ -3629,8 +3629,13 @@ function renderToday(){
   renderSyncBanner();
   if(t.type==='rest'){showView('rest');return;}
   try{renderAccountability();refreshPushSchedule();}catch(e){}
-  const wd=weekdayLabel(t.dayNum-1);
   const isRealToday=(state.currentDayIdx===todayScheduleIdx());
+  // weekdayLabel(t.dayNum-1) just maps the split's rotating day-slot onto
+  // Mon-Sun by index — only actually the calendar weekday when the schedule
+  // is exactly 7 slots long. Most splits (e.g. a 6-day rotation) drift out
+  // of sync with real weekdays within a couple cycles, so "today" must use
+  // the real Date, not the slot index.
+  const wd=isRealToday?WEEKDAYS[(new Date().getDay()+6)%7]:weekdayLabel(t.dayNum-1);
   document.getElementById('today-eyebrow').textContent=isRealToday?`${wd} · TODAY`:wd;
   const nameParts=t.name.split(' & ');
   document.getElementById('today-title').innerHTML=nameParts.length===2?`<span style="white-space:nowrap">${esc(nameParts[0])} &amp;</span> <span class="accent">${esc(nameParts[1])}</span>`:`<span class="accent">${esc(t.name)}</span>`;
@@ -3646,7 +3651,17 @@ function renderToday(){
   const doneCount=exs.filter(e=>e.done).length;
   document.getElementById('today-count').textContent=`${doneCount} / ${exs.length}`;
   const currentIdx=exs.findIndex(e=>!e.done);
-  const _openPanelId=(document.querySelector('.inline-log.show')||{}).id||'';
+  // Track the open panel by exercise name, not its DOM index — if the list
+  // reshapes (day advances, an exercise gets removed/skipped) the same index
+  // can now belong to a different exercise, popping its log panel open
+  // unprompted and risking a set logged against the wrong lift.
+  const _openPanelEl=document.querySelector('.inline-log.show');
+  let _openExName='';
+  if(_openPanelEl){
+    const _openIdx=_openPanelEl.id.slice('inline-'.length);
+    const _openNameEl=document.querySelector(`.exercise[data-ex-idx="${_openIdx}"] .ex-name`);
+    if(_openNameEl)_openExName=_openNameEl.textContent;
+  }
   document.getElementById('exercise-list').innerHTML=exs.map((ex,i)=>{
     let cls='exercise';
     if(ex.skipped)cls+=' skipped';
@@ -3692,7 +3707,7 @@ function renderToday(){
       ${rightSets}
     </div>${inlineHtml}`;
   }).join('');
-  if(_openPanelId){const _op=document.getElementById(_openPanelId);if(_op)_op.classList.add('show');}
+  if(_openExName){const _newIdx=exs.findIndex(e=>e.name===_openExName);if(_newIdx>=0){const _op=document.getElementById('inline-'+_newIdx);if(_op)_op.classList.add('show');}}
   const btn=document.getElementById('complete-btn');
   const addBtn=document.getElementById('add-ex-btn');
   const customBtn=document.getElementById('customize-day-btn');
@@ -4577,7 +4592,7 @@ function drawChart(id,points,opts){
     ${labels}
     ${tips}
     <text x="${PX}" y="${H-10}" fill="#B0B0B0" font-family="Oswald" font-size="9" text-anchor="start" letter-spacing="1">${dStr(points[0].date)}</text>
-    <text x="${(PX+cW/2).toFixed(1)}" y="${H-10}" fill="#B0B0B0" font-family="Oswald" font-size="9" text-anchor="middle" letter-spacing="1">${dStr(points[midI].date)}</text>
+    ${(midI!==0&&midI!==points.length-1)?`<text x="${(PX+cW/2).toFixed(1)}" y="${H-10}" fill="#B0B0B0" font-family="Oswald" font-size="9" text-anchor="middle" letter-spacing="1">${dStr(points[midI].date)}</text>`:''}
     <text x="${W-PR}" y="${H-10}" fill="#B0B0B0" font-family="Oswald" font-size="9" text-anchor="end" letter-spacing="1">${dStr(points[points.length-1].date)}</text>
     ${hits}
   `;
