@@ -187,6 +187,7 @@ input,textarea{user-select:text}
 .exercise.current .ex-log-btn.done{background:transparent;color:#fff;border-color:#fff}
 .inline-log{max-height:0;overflow:hidden;opacity:0;transition:max-height .22s ease,opacity .18s ease,margin .22s ease;margin:0 0 0 0}
 .inline-log.show{max-height:160px;opacity:1;margin:-4px 0 10px}
+.il-hint{font-family:'JetBrains Mono',monospace;font-size:9.5px;line-height:1.4;color:var(--text-faint);margin:0 0 8px;letter-spacing:.03em}
 .il-row{display:flex;align-items:flex-end;gap:8px;padding:0 2px}
 .il-field{flex:1;display:flex;flex-direction:column;gap:4px}
 .il-field label{font-family:'Oswald',sans-serif;font-size:8.5px;letter-spacing:.18em;color:var(--text-faint);text-transform:uppercase;font-weight:700}
@@ -1533,7 +1534,7 @@ html,body{background:#FFFFFF;font-family:'Inter',sans-serif;font-weight:400;-web
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_BUILD='2026-09-09.1';  // bump on every deploy — drives auto-update
+const APP_BUILD='2026-09-10.1';  // bump on every deploy — drives auto-update
 const LIBRARY=[
   {id:'flat-bench',name:'Flat Bench Press',muscle:'chest',secondary:['triceps','front-delts'],region:'middle',type:'COMPOUND',equipment:'BARBELL',form:{primary:'Bench angle flat, feet planted, shoulder blades tucked and down.',cues:['Bar touches mid-chest at nipple line','Drive feet through floor for leg drive','Elbows at ~45° to torso','2 seconds down · pause · explode up']}},
   {id:'inc-bench',name:'Incline Bench Press',muscle:'chest',secondary:['triceps','front-delts'],region:'upper',type:'COMPOUND',equipment:'BARBELL',form:{primary:'Bench angle 30–45° (not higher — shifts to front delts).',cues:['Feet planted, shoulder blades tucked','Bar touches upper chest (below collarbone)','Drive bar in slight arc back over shoulders','Focus contraction on upper chest']}},
@@ -3690,12 +3691,14 @@ function renderToday(){
     const _fr=(ex.topLogged&&ex.topSet)?(ex.topSet.reps||''):'';
     const _kgPlaceholder=_bw?'BW':(_last&&_last.kg?_last.kg:'kg');
     const inlineHtml=ex.skipped?'':`<div class="inline-log" id="inline-${i}">
+      <p class="il-hint">Log your top set — the heaviest one — to track progress</p>
       <div class="il-row">
         <div class="il-field"><label>${_bw?'ADDED · KG':'WEIGHT · KG'}</label><input class="il-input" id="il-kg-${i}" type="number" inputmode="decimal" placeholder="${_kgPlaceholder}" value="${_fk}" autocomplete="off" onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter')logInline(${i})"></div>
         <div class="il-field"><label>REPS</label><input class="il-input" id="il-reps-${i}" type="number" inputmode="numeric" placeholder="${_last?_last.reps:'reps'}" value="${_fr}" autocomplete="off" onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter')logInline(${i})"></div>
         <button class="il-log${ex.topLogged?' done':''}" onclick="event.stopPropagation();logInline(${i})">${ex.topLogged?'✓ LOGGED':'LOG'}</button>
       </div>
       <div class="il-actions">
+        <button class="il-act" onclick="event.stopPropagation();swapExerciseAt(${i})">⇄ Swap</button>
         <button class="il-act" onclick="event.stopPropagation();skipExerciseAt(${i})">— Skip</button>
       </div>
     </div>`;
@@ -4017,6 +4020,14 @@ function skipCurrentEx(){
   if(!confirm(`Skip ${ex.name}? It'll be marked as skipped (no sets logged).`))return;
   skipExerciseAt(i);
   showView('today');
+}
+// Swap from the today-list inline actions — same swap flow as the exercise
+// detail SWAP button, just pointed at whichever row's panel is open.
+function swapExerciseAt(i){
+  const ex=state.today&&state.today.exercises&&state.today.exercises[i];
+  if(!ex)return;
+  state.currentExerciseIdx=i;
+  openSwap();
 }
 function unskipExerciseAt(i){
   const ex=state.today&&state.today.exercises&&state.today.exercises[i];
